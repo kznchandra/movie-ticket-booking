@@ -26,6 +26,5 @@ public class BookingSeat implements Serializable {
     @JsonIgnore
     private Booking booking;
     private Long seatInventoryId;
-    private Double price;
     private Double pricePaid;
 }
