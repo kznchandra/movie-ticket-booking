@@ -1,5 +1,6 @@
 package com.pbs.bookingservice.handler;
 
+import com.pbs.bookingservice.common.ex.BookingNotFoundException;
 import com.pbs.bookingservice.common.ex.BusinessException;
 import com.pbs.bookingservice.common.ex.SeatUnavailableException;
 import org.springframework.http.HttpStatus;
@@ -12,15 +13,23 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ProblemDetail handleException(Exception e) {
+    public ProblemDetail handleBusinessException(Exception e) {
         return ProblemDetail.forStatusAndDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 e.getMessage()
         );
     }
 
+    @ExceptionHandler(BookingNotFoundException.class)
+    public ProblemDetail bookingNotFound(BookingNotFoundException e) {
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND,
+                e.getMessage()
+        );
+    }
+
     @ExceptionHandler(SeatUnavailableException.class)
-    public ProblemDetail handleException(SeatUnavailableException e) {
+    public ProblemDetail handleSeatUnavailableException(SeatUnavailableException e) {
         return ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST,
                 e.getMessage()

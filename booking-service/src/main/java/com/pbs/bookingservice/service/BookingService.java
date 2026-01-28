@@ -1,6 +1,7 @@
 package com.pbs.bookingservice.service;
 
 import com.github.f4b6a3.ulid.UlidCreator;
+import com.pbs.bookingservice.common.ex.BookingNotFoundException;
 import com.pbs.bookingservice.common.ex.BusinessException;
 import com.pbs.bookingservice.common.ex.SeatUnavailableException;
 import com.pbs.bookingservice.common.req.BookingRequest;
@@ -153,8 +154,8 @@ public class BookingService {
     }
 
     public BookingResponse getBookingById(Long bookingId, Long userId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        Booking booking = bookingRepository.findByBookingIdAndUserId(bookingId, userId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 
         validateBookingOwnership(booking, userId);
 
