@@ -78,7 +78,7 @@ public class BookingService {
         // Publish Kafka event
         // publishBookingInitiatedEvent(booking);
         log.info("Booking initiated successfully with reference: {}", booking.getBookingReference());
-        return new BookingResponse(booking, seats);
+        return new BookingResponse(booking);
     }
 
     private Booking createBookingRecord(
@@ -198,10 +198,7 @@ public class BookingService {
         bookingRepository.save(booking);
 
         validateBookingOwnership(booking, userId);
-
-        List<SeatInventory> seats = getSeatsForBooking(booking);
-
-        return new BookingResponse(booking, seats);
+        return new BookingResponse(booking);
     }
 
     private void validateBookingRequest(BookingRequest request) {
@@ -253,6 +250,7 @@ public class BookingService {
         bookingSeat.setSeatInventoryId(seat.getId());
         bookingSeat.setPricePaid(seat.getPrice());
         bookingSeat.setStatus(BookingSeatStatus.PENDING);
+        bookingSeat.setSeatNumber(seat.getSeatNumber());
         return bookingSeat;
     }
 
@@ -330,10 +328,7 @@ public class BookingService {
         log.info("Found {} bookings for userId: {}", bookings.size(), userId);
 
         return bookings.stream()
-                .map(booking -> {
-                    List<SeatInventory> seats = getSeatsForBooking(booking);
-                    return new BookingResponse(booking, seats);
-                })
+                .map(BookingResponse::new)
                 .toList();
     }
 }

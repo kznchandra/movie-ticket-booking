@@ -27,6 +27,7 @@ public class BookingSeat implements Serializable {
     @JsonIgnore
     private Booking booking;
     private Long seatInventoryId;
+    private String seatNumber;
     private Double pricePaid;
     @Enumerated(EnumType.STRING)
     private BookingSeatStatus status = BookingSeatStatus.PENDING;
