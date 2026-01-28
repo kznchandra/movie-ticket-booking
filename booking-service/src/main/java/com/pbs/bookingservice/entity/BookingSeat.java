@@ -1,5 +1,7 @@
 package com.pbs.bookingservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,6 +22,8 @@ public class BookingSeat implements Serializable {
 
     @ManyToOne
     @JoinColumn(name = "BOOKING_ID")
+    @JsonBackReference
+    @JsonIgnore
     private Booking booking;
     private Long seatInventoryId;
     private Double price;

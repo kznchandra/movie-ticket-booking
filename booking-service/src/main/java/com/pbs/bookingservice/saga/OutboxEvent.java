@@ -20,7 +20,6 @@ public class OutboxEvent {
     private String aggregateId;     // bookingReference
     private String eventType;       // BOOKING_INITIATED
 
-    @Column(columnDefinition = "jsonb")
     private String payload;
 
     @Enumerated(EnumType.STRING)

@@ -1,5 +1,6 @@
 package com.pbs.bookingservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.pbs.bookingservice.entity.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -49,6 +50,8 @@ public class Booking implements Serializable {
     @Column(name = "EXPIRY_TIME")
     private java.time.LocalDateTime expiryTime;
 
+
+    @JsonManagedReference
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BookingSeat> bookingSeats;
 

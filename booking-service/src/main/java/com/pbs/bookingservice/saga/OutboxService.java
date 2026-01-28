@@ -38,22 +38,20 @@ public class OutboxService {
         event.setAggregateId(booking.getBookingReference());
         event.setEventType(eventType);
         event.setStatus("NEW");
-        event.setPayload(serializeBookingPayload(booking));
-        return event;
-    }
-
-    private String serializeBookingPayload(Booking booking) {
         try {
-            return objectMapper.writeValueAsString(
-                    Map.of(
-                            "bookingReference", booking.getBookingReference(),
-                            "userId", booking.getUserId(),
-                            "showId", booking.getShowId(),
-                            "amount", booking.getFinalAmount()
-                    )
-            );
+            event.setPayload(objectMapper.writeValueAsString(serializeBookingPayload(booking)));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+        return event;
+    }
+
+    private Map<String, Object> serializeBookingPayload(Booking booking) {
+        return Map.of(
+                "bookingReference", booking.getBookingReference(),
+                "userId", booking.getUserId(),
+                "showId", booking.getShowId(),
+                "amount", booking.getFinalAmount()
+        );
     }
 }
