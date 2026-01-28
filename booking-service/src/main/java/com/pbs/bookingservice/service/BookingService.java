@@ -26,12 +26,16 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 public class BookingService {
-    private final RedisTemplate redisTemplate;
+    private static final int BOOKING_EXPIRY_MINUTES = 10;
+    private static final long BOOKING_EXPIRY_CHECK_DELAY_MS = 60000;
+
+    private final RedisTemplate<String,String> redisTemplate;
     private final KafkaEventPublisher kafkaPublisher;
     private final PricingService pricingService;
     private final SeatInventoryRepository seatInventoryRepository;
@@ -40,9 +44,10 @@ public class BookingService {
     private final OutboxService outboxService;
 
     public BookingResponse initiateBooking(BookingRequest request) {
+        validateBookingRequest(request);
 
         // Acquire seat locks
-        List<SeatInventory> seats = acquireSeatsWithLock(
+        List<SeatInventory> seats = validateAndLockSeats(
                 request.getShowId(),
                 request.getSeatNumbers(),
                 request.getUserId()
@@ -59,15 +64,10 @@ public class BookingService {
         outboxService.saveBookingInitiatedEvent(booking);
 
         // Cache booking temporarily
-        redisTemplate.opsForValue().set(
-                "BOOKING:" + booking.getBookingReference(),
-                booking,
-                10,
-                TimeUnit.MINUTES
-        );
+        cacheBooking(booking);
 
         // Publish Kafka event
-       // kafkaPublisher.bookingInitiated(booking);
+        publishBookingInitiatedEventAsync(booking);
         return BookingResponse.from(booking, seats);
     }
 
@@ -85,25 +85,20 @@ public class BookingService {
         booking.setDiscountAmount(pricing.getDiscountAmount());
         booking.setFinalAmount(pricing.getFinalAmount());
         booking.setBookingTime(LocalDateTime.now());
-        booking.setExpiryTime(LocalDateTime.now().plusMinutes(10));
+        booking.setExpiryTime(LocalDateTime.now().plusMinutes(BOOKING_EXPIRY_MINUTES));
 
         Booking saved = bookingRepository.save(booking);
 
         List<BookingSeat> bookingSeats = seats.stream()
-                .map(seat -> {
-                    BookingSeat bs = new BookingSeat();
-                    bs.setBooking(saved);
-                    bs.setSeatInventoryId(seat.getId());
-                    bs.setPricePaid(seat.getPrice());
-                    return bs;
-                }).toList();
+                .map(seat -> createBookingSeat(saved, seat))
+                .toList();
 
         saved.setBookingSeats(bookingSeats);
         return bookingRepository.save(saved);
     }
 
 
-    private List<SeatInventory> acquireSeatsWithLock(
+    private List<SeatInventory> validateAndLockSeats(
             Long showId,
             List<String> seatNumbers,
             Long userId) {
@@ -116,9 +111,7 @@ public class BookingService {
         }
 
         for (SeatInventory seat : seats) {
-            if (!SeatStatus.AVAILABLE.equals(seat.getSeatStatus())) {
-                throw new SeatUnavailableException(seat.getSeatNumber());
-            }
+            validateSeatAvailability(seat);
             seatLockService.lockSeat(seat.getId(), userId);
         }
         return seats;
@@ -130,59 +123,34 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
 
-        if (!BookingStatus.PENDING_PAYMENT.equals(booking.getStatus())) {
-            throw new BusinessException("Invalid booking state");
-        }
+        validateBookingForConfirmation(booking);
 
         booking.setStatus(BookingStatus.CONFIRMED_BOOKING);
         bookingRepository.save(booking);
 
         outboxService.saveBookingConfirmedEvent(booking);
 
-        List<SeatInventory> seats =
-                seatInventoryRepository.findAllById(
-                        booking.getBookingSeats()
-                                .stream()
-                                .map(BookingSeat::getSeatInventoryId)
-                                .toList()
-                );
+        List<SeatInventory> seats = getSeatsForBooking(booking);
 
-        seats.forEach(seat -> seat.setSeatStatus(SeatStatus.BOOKED));
-        seatInventoryRepository.saveAll(seats);
+        updateSeatsStatus(seats, SeatStatus.BOOKED);
+        unlockSeats(seats);
 
-        seats.forEach(seat -> seatLockService.unlockSeat(seat.getId()));
-
-        kafkaPublisher.bookingConfirmed(booking);
+        publishBookingConfirmedEventAsync(booking);
     }
 
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(fixedDelay = BOOKING_EXPIRY_CHECK_DELAY_MS)
     @Transactional
     public void expireBookings() {
 
-        List<Booking> expired =
+        List<Booking> expiredBookings =
                 bookingRepository.findExpiredBookings(LocalDateTime.now());
 
-        for (Booking booking : expired) {
-            booking.setStatus(BookingStatus.EXPIRED_BOOKING);
-            bookingRepository.save(booking);
+        if (expiredBookings == null || expiredBookings.isEmpty()) {
+            return;
+        }
 
-           outboxService.saveBookingExpiredEvent(booking);
-
-            List<SeatInventory> seats =
-                    seatInventoryRepository.findAllById(
-                            booking.getBookingSeats()
-                                    .stream()
-                                    .map(BookingSeat::getSeatInventoryId)
-                                    .toList()
-                    );
-
-            seats.forEach(seat -> {
-                seat.setSeatStatus(SeatStatus.AVAILABLE);
-                seatLockService.unlockSeat(seat.getId());
-            });
-
-            seatInventoryRepository.saveAll(seats);
-            kafkaPublisher.bookingExpired(booking);
+        for (Booking booking : expiredBookings) {
+            expireBooking(booking);
         }
     }
 
@@ -190,18 +158,106 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
 
+        validateBookingOwnership(booking, userId);
+
+        List<SeatInventory> seats = getSeatsForBooking(booking);
+
+        return BookingResponse.from(booking, seats);
+    }
+
+    private void validateBookingRequest(BookingRequest request) {
+        if (request.getShowId() == null) {
+            throw new BusinessException("Show ID is required");
+        }
+        if (request.getUserId() == null) {
+            throw new BusinessException("User ID is required");
+        }
+        if (request.getSeatNumbers() == null || request.getSeatNumbers().isEmpty()) {
+            throw new BusinessException("Seat numbers are required");
+        }
+    }
+
+    private void validateSeatAvailability(SeatInventory seat) {
+        if (!SeatStatus.AVAILABLE.equals(seat.getSeatStatus())) {
+            throw new SeatUnavailableException(seat.getSeatNumber());
+        }
+    }
+
+    private void validateBookingForConfirmation(Booking booking) {
+        if (!BookingStatus.PENDING_PAYMENT.equals(booking.getStatus())) {
+            throw new BusinessException("Invalid booking state");
+        }
+        if (booking.getExpiryTime().isBefore(LocalDateTime.now())) {
+            throw new BusinessException("Booking has expired");
+        }
+    }
+
+    private void validateBookingOwnership(Booking booking, Long userId) {
         if (!booking.getUserId().equals(userId)) {
             throw new BusinessException("Booking does not belong to this user");
         }
+    }
 
-        List<SeatInventory> seats =
-                seatInventoryRepository.findAllById(
-                        booking.getBookingSeats()
-                                .stream()
-                                .map(BookingSeat::getSeatInventoryId)
-                                .toList()
-                );
+    private BookingSeat createBookingSeat(Booking booking, SeatInventory seat) {
+        BookingSeat bookingSeat = new BookingSeat();
+        bookingSeat.setBooking(booking);
+        bookingSeat.setSeatInventoryId(seat.getId());
+        bookingSeat.setPricePaid(seat.getPrice());
+        return bookingSeat;
+    }
 
-        return BookingResponse.from(booking, seats);
+    private List<SeatInventory> getSeatsForBooking(Booking booking) {
+        List<Long> seatInventoryIds = booking.getBookingSeats()
+                .stream()
+                .map(BookingSeat::getSeatInventoryId)
+                .toList();
+        return seatInventoryRepository.findAllById(seatInventoryIds);
+    }
+
+    private void updateSeatsStatus(List<SeatInventory> seats, SeatStatus status) {
+        seats.forEach(seat -> seat.setSeatStatus(status));
+        seatInventoryRepository.saveAll(seats);
+    }
+
+    private void unlockSeats(List<SeatInventory> seats) {
+        seats.forEach(seat -> seatLockService.unlockSeat(seat.getId()));
+    }
+
+    private void cacheBooking(Booking booking) {
+        redisTemplate.opsForValue().set(
+                "BOOKING:" + booking.getBookingReference(),
+                booking.getId().toString(),
+                BOOKING_EXPIRY_MINUTES,
+                TimeUnit.MINUTES
+        );
+    }
+
+    private void expireBooking(Booking booking) {
+        booking.setStatus(BookingStatus.EXPIRED_BOOKING);
+        bookingRepository.save(booking);
+
+        outboxService.saveBookingExpiredEvent(booking);
+
+        List<SeatInventory> seats = getSeatsForBooking(booking);
+
+        seats.forEach(seat -> {
+            seat.setSeatStatus(SeatStatus.AVAILABLE);
+            seatLockService.unlockSeat(seat.getId());
+        });
+
+        seatInventoryRepository.saveAll(seats);
+        publishBookingExpiredEventAsync(booking);
+    }
+
+    private void publishBookingInitiatedEventAsync(Booking booking) {
+        CompletableFuture.runAsync(() -> kafkaPublisher.bookingInitiated(booking));
+    }
+
+    private void publishBookingConfirmedEventAsync(Booking booking) {
+        CompletableFuture.runAsync(() -> kafkaPublisher.bookingConfirmed(booking));
+    }
+
+    private void publishBookingExpiredEventAsync(Booking booking) {
+        CompletableFuture.runAsync(() -> kafkaPublisher.bookingExpired(booking));
     }
 }

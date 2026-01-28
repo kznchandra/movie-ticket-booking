@@ -4,9 +4,9 @@ import com.pbs.bookingservice.common.resp.PricingDetails;
 import com.pbs.bookingservice.entity.SeatInventory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -14,26 +14,34 @@ import java.util.List;
 public class PricingService {
     
     private final OfferService offerService;
+
     public PricingDetails calculatePricing(
             List<SeatInventory> seats,
             String offerCode) {
 
-        BigDecimal base =
-                seats.stream()
-                        .map(seat -> BigDecimal.valueOf(seat.getPrice()))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal discount = BigDecimal.ZERO;
-
-
-
-        // Apply offer code discount
-        if (offerCode != null && !offerCode.isEmpty()) {
-            BigDecimal offerDiscount = offerService.applyOffer(base, offerCode, seats);
-            discount = discount.add(offerDiscount);
+        if (seats == null || seats.isEmpty()) {
+            throw new IllegalArgumentException("Seats list cannot be null or empty");
         }
 
-        return new PricingDetails(base, discount, base.subtract(discount));
+        BigDecimal basePrice = calculateBasePrice(seats);
+        BigDecimal discount = calculateDiscount(offerCode, seats);
+        BigDecimal finalPrice = basePrice.subtract(discount);
+
+        return new PricingDetails(basePrice, discount, finalPrice);
+    }
+
+    private BigDecimal calculateBasePrice(List<SeatInventory> seats) {
+        return seats.stream()
+                .map(seat -> BigDecimal.valueOf(seat.getPrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal calculateDiscount(String offerCode, List<SeatInventory> seats) {
+        if (!StringUtils.hasText(offerCode)) {
+            return BigDecimal.ZERO;
+        }
+
+        return offerService.applyOffer(offerCode, seats);
     }
 
 }
