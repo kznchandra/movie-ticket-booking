@@ -74,50 +74,6 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 3
 
-  kong-database:
-    image: postgres:13
-    container_name: kong-database
-    restart: on-failure
-    environment:
-      POSTGRES_USER: kong
-      POSTGRES_DB: kong
-      POSTGRES_PASSWORD: kong123
-    volumes:
-      - kong-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U kong" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - app-network
-
-  kong-api-gateway:
-    image: kong:latest
-    container_name: kong-api-gateway
-    restart: on-failure
-    environment:
-      KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-database
-      KONG_PG_DATABASE: kong
-      KONG_PG_USER: kong
-      KONG_PG_PASSWORD: kong123
-      KONG_PROXY_ACCESS_LOG: /dev/stdout
-      KONG_ADMIN_ACCESS_LOG: /dev/stdout
-      KONG_PROXY_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_LISTEN: 0.0.0.0:8001
-    ports:
-      - "8000:8000"
-      - "8443:8443"
-      - "8001:8001"
-      - "8444:8444"
-    depends_on:
-      kong-database:
-        condition: service_healthy
-    networks:
-      - app-network
-
   redis:
     image: redis:alpine
     container_name: redis
@@ -167,7 +123,6 @@ services:
 
 volumes:
   postgres-data:
-  kong-db-data:
   redis-data:
 
 networks:
