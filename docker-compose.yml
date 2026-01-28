@@ -11,13 +11,13 @@ services:
     ports:
       - "9000:9000"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mtb
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/mtb
       - SPRING_DATASOURCE_USERNAME=kaizen
       - SPRING_DATASOURCE_PASSWORD=admin
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
-      - postgres
+      - postgres-db
       - redis
     networks:
       - app-network
@@ -32,14 +32,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mtb
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/mtb
       - SPRING_DATASOURCE_USERNAME=kaizen
       - SPRING_DATASOURCE_PASSWORD=admin
       - KAFKA_BOOTSTRAP_SERVERS=kafka-server:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
-      - postgres
+      - postgres-db
       - kafka-server
       - redis
       - auth-service
@@ -52,11 +52,11 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://localhost:9092,CONTROLLER://localhost:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-server:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-server:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -88,13 +88,11 @@ services:
     networks:
       - app-network
 
-  postgres:
+  postgres-db:
     image: postgres:15
-    container_name: postgres
+    container_name: postgres-db
     restart: on-failure
     environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
       POSTGRES_DB: mtb
       POSTGRES_USER: kaizen
       POSTGRES_PASSWORD: admin
@@ -120,7 +118,7 @@ services:
     ports:
       - "5050:80"
     depends_on:
-      - postgres
+      - postgres-db
     networks:
       - app-network
 
