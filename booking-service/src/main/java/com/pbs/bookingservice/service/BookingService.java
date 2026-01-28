@@ -120,7 +120,7 @@ public class BookingService {
     public void confirmBooking(Long bookingId) {
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 
         validateBookingForConfirmation(booking);
 
@@ -133,6 +133,8 @@ public class BookingService {
 
         updateSeatsStatus(seats, SeatStatus.BOOKED);
         unlockSeats(seats);
+
+        seatInventoryRepository.saveAll(seats);
 
         publishBookingConfirmedEventAsync(booking);
     }

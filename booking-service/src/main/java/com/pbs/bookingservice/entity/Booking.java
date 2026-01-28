@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -52,8 +53,8 @@ public class Booking implements Serializable {
 
 
     @JsonManagedReference
-    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<BookingSeat> bookingSeats;
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.PERSIST, orphanRemoval = true)
+    private List<BookingSeat> bookingSeats = new ArrayList<>();
 
 
 }
