@@ -15,7 +15,7 @@ public class BookingRequest {
     @NotNull(message = "User ID is required")
     private Long userId;
 
-    private String offerCode;
+    private OfferDiscountCode offerCode;
 
     @NotNull(message = "Show ID is required")
     private Long showId;

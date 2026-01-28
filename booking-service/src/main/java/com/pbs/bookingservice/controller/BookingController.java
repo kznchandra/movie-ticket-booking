@@ -83,4 +83,19 @@ public class BookingController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(
+            summary = "Get all bookings for user",
+            description = "Retrieves all bookings for the authenticated user"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Bookings retrieved successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid or missing authentication"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    @GetMapping(value = "{userId}/bookings", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<java.util.List<BookingResponse>> getAllBookingsForUser(@PathVariable Long userId,
+            @AuthenticationPrincipal Authentication user) {
+        return ResponseEntity.ok(bookingService.getAllBookingsByUserId(1L)); // dummy user id for testing
+    }
+
 }

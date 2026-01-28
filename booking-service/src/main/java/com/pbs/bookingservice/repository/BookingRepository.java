@@ -17,4 +17,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT b FROM Booking b WHERE b.id = :bookingId AND b.userId = :userId")
     Optional<Booking> findByBookingIdAndUserId(Long bookingId, Long userId);
+
+    @Query("SELECT b FROM Booking b WHERE b.userId = :userId")
+    List<Booking> findByUserId(long userId);
 }

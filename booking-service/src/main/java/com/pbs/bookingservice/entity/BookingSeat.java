@@ -2,6 +2,7 @@ package com.pbs.bookingservice.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.pbs.bookingservice.entity.enums.BookingSeatStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,4 +28,6 @@ public class BookingSeat implements Serializable {
     private Booking booking;
     private Long seatInventoryId;
     private Double pricePaid;
+    @Enumerated(EnumType.STRING)
+    private BookingSeatStatus status = BookingSeatStatus.PENDING;
 }
