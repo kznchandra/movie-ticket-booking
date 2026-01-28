@@ -1,4 +1,4 @@
-package com.pbs.bookingservice.config;
+package com.pbs.bookingservice.handler;
 
 import com.pbs.bookingservice.common.ex.BusinessException;
 import com.pbs.bookingservice.common.ex.SeatUnavailableException;
