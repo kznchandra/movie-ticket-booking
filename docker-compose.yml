@@ -1,50 +1,50 @@
 version: '3.8'
 
 services:
-  auth-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: on-failure
-    image: chandrashekharv/mtb/auth-service:latest
-    container_name: auth-service
-    ports:
-      - "9000:9000"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/mtb
-      - SPRING_DATASOURCE_USERNAME=kaizen
-      - SPRING_DATASOURCE_PASSWORD=admin
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      - postgres-db
-      - redis
-    networks:
-      - app-network
-
-  booking-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: on-failure
-    image: chandrashekharv/mtb/booking-service:latest
-    container_name: booking-service
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/mtb
-      - SPRING_DATASOURCE_USERNAME=kaizen
-      - SPRING_DATASOURCE_PASSWORD=admin
-      - KAFKA_BOOTSTRAP_SERVERS=kafka-server:9092
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      - postgres-db
-      - kafka-server
-      - redis
-      - auth-service
-    networks:
-      - app-network
+#  auth-service:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    restart: on-failure
+#    image: chandrashekharv/mtb/auth-service:latest
+#    container_name: auth-service
+#    ports:
+#      - "9000:9000"
+#    environment:
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/mtb
+#      - SPRING_DATASOURCE_USERNAME=kaizen
+#      - SPRING_DATASOURCE_PASSWORD=admin
+#      - REDIS_HOST=redis
+#      - REDIS_PORT=6379
+#    depends_on:
+#      - postgres-db
+#      - redis
+#    networks:
+#      - app-network
+#
+#  booking-service:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    restart: on-failure
+#    image: chandrashekharv/mtb/booking-service:latest
+#    container_name: booking-service
+#    ports:
+#      - "8080:8080"
+#    environment:
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/mtb
+#      - SPRING_DATASOURCE_USERNAME=kaizen
+#      - SPRING_DATASOURCE_PASSWORD=admin
+#      - KAFKA_BOOTSTRAP_SERVERS=kafka-server:9092
+#      - REDIS_HOST=redis
+#      - REDIS_PORT=6379
+#    depends_on:
+#      - postgres-db
+#      - kafka-server
+#      - redis
+#      - auth-service
+#    networks:
+#      - app-network
 
   kafka-server:
     image: apache/kafka:latest

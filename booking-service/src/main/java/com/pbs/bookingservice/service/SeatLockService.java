@@ -1,5 +1,6 @@
 package com.pbs.bookingservice.service;
 
+import com.pbs.bookingservice.common.ex.SeatLockException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -9,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class SeatLockService {
-    
+
     private static final long LOCK_TIMEOUT_MINUTES = 10;
     private static final String SEAT_LOCK_KEY_PATTERN = "seat:lock:%d";
 
@@ -19,18 +20,25 @@ public class SeatLockService {
         if (id == null || userId == null) {
             throw new IllegalArgumentException("Seat ID and User ID cannot be null");
         }
-        String lockKey = generateLockKey(id);
-        redisTemplate.opsForValue().set(lockKey, userId.toString(), LOCK_TIMEOUT_MINUTES, TimeUnit.MINUTES);
-        return true;
+        try {
+            String lockKey = generateLockKey(id);
+            redisTemplate.opsForValue().set(lockKey, userId.toString(), LOCK_TIMEOUT_MINUTES, TimeUnit.MINUTES);
+            return true;
+        } catch (Exception ex) {
+            throw new SeatLockException(ex.getMessage(), ex);
+        }
     }
 
-    public boolean unlockSeat(Long id) {
+    public void unlockSeat(Long id) {
         if (id == null) {
             throw new IllegalArgumentException("Seat ID cannot be null");
         }
-        String lockKey = generateLockKey(id);
-        Boolean result = redisTemplate.delete(lockKey);
-        return Boolean.TRUE.equals(result);
+        try {
+            String lockKey = generateLockKey(id);
+            redisTemplate.delete(lockKey);
+        } catch (Exception ex) {
+            throw new SeatLockException(ex.getMessage(), ex);
+        }
     }
 
     private String generateLockKey(Long seatId) {

@@ -8,14 +8,10 @@ import lombok.Getter;
 
 import java.util.List;
 
-@Getter
-@AllArgsConstructor
-public class BookingResponse {
-    private final Booking booking;
-    private final List<SeatInventory> seatsInventory;
-    private final List<BookingSeat> seats;
 
-    public static BookingResponse from(Booking booking, List<SeatInventory> seatsInventory) {
-        return new BookingResponse(booking, seatsInventory, booking.getBookingSeats());
+public record BookingResponse(Booking booking, List<SeatInventory> seatsInventory, List<BookingSeat> bookingSeats) {
+    public  BookingResponse(Booking booking, List<SeatInventory> seatsInventory) {
+        this(booking, seatsInventory, booking.getBookingSeats());
     }
+
 }

@@ -1,9 +1,7 @@
 package com.pbs.bookingservice.service;
 
 import com.github.f4b6a3.ulid.UlidCreator;
-import com.pbs.bookingservice.common.ex.BookingNotFoundException;
-import com.pbs.bookingservice.common.ex.BusinessException;
-import com.pbs.bookingservice.common.ex.SeatUnavailableException;
+import com.pbs.bookingservice.common.ex.*;
 import com.pbs.bookingservice.common.req.BookingRequest;
 import com.pbs.bookingservice.common.resp.BookingResponse;
 import com.pbs.bookingservice.common.resp.PricingDetails;
@@ -18,23 +16,21 @@ import com.pbs.bookingservice.repository.SeatInventoryRepository;
 import com.pbs.bookingservice.saga.OutboxService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 public class BookingService {
-    private static final int BOOKING_EXPIRY_MINUTES = 10;
+    private static final int BOOKING_EXPIRY_MINUTES = 15;
     private static final long BOOKING_EXPIRY_CHECK_DELAY_MS = 60000;
 
-    private final RedisTemplate<String,String> redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
     private final KafkaEventPublisher kafkaPublisher;
     private final PricingService pricingService;
     private final SeatInventoryRepository seatInventoryRepository;
@@ -43,31 +39,36 @@ public class BookingService {
     private final OutboxService outboxService;
 
     public BookingResponse initiateBooking(BookingRequest request) {
-        validateBookingRequest(request);
+        try {
+            validateBookingRequest(request);
 
-        // Acquire seat locks
-        List<SeatInventory> seats = validateAndLockSeats(
-                request.getShowId(),
-                request.getSeatNumbers(),
-                request.getUserId()
-        );
+            // Acquire seat locks
+            List<SeatInventory> seats = validateAndLockSeats(
+                    request.getShowId(),
+                    request.getSeatNumbers(),
+                    request.getUserId()
+            );
 
-        // Pricing
-        PricingDetails pricing =
-                pricingService.calculatePricing(seats, request.getOfferCode());
+            // Pricing
+            PricingDetails pricing =
+                    pricingService.calculatePricing(seats, request.getOfferCode());
 
-        // Create booking
-        Booking booking = createBookingRecord(request, seats, pricing);
+            // Create booking
+            Booking booking = createBookingRecord(request, seats, pricing);
 
-        // Write Outbox Event (same transaction)
-        outboxService.saveBookingInitiatedEvent(booking);
+            // Write Outbox Event (same transaction)
+            outboxService.saveBookingInitiatedEvent(booking);
 
-        // Cache booking temporarily
-        cacheBooking(booking);
+            // Cache booking temporarily
+            cacheBooking(booking);
 
-        // Publish Kafka event
-        publishBookingInitiatedEventAsync(booking);
-        return BookingResponse.from(booking, seats);
+            // Publish Kafka event
+            // publishBookingInitiatedEvent(booking);
+            return new BookingResponse(booking, seats);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new BookingException("Booking failed", e);
+        }
     }
 
     private Booking createBookingRecord(
@@ -86,14 +87,12 @@ public class BookingService {
         booking.setBookingTime(LocalDateTime.now());
         booking.setExpiryTime(LocalDateTime.now().plusMinutes(BOOKING_EXPIRY_MINUTES));
 
-        Booking saved = bookingRepository.save(booking);
-
         List<BookingSeat> bookingSeats = seats.stream()
-                .map(seat -> createBookingSeat(saved, seat))
+                .map(seat -> createBookingSeat(booking, seat))
                 .toList();
 
-        saved.setBookingSeats(bookingSeats);
-        return bookingRepository.save(saved);
+        booking.setBookingSeats(bookingSeats);
+        return bookingRepository.save(booking);
     }
 
 
@@ -106,12 +105,15 @@ public class BookingService {
                 seatInventoryRepository.findByShowIdAndSeatNumberIn(showId, seatNumbers);
 
         if (seats.size() != seatNumbers.size()) {
-            throw new BusinessException("Some seats not found");
+            throw new BookingException("Some seats not found");
         }
 
-        for (SeatInventory seat : seats) {
+        boolean isAllSeatsLocked = seats.stream().allMatch(seat -> {
             validateSeatAvailability(seat);
-            seatLockService.lockSeat(seat.getId(), userId);
+            return seatLockService.lockSeat(seat.getId(), userId);
+        });
+        if (!isAllSeatsLocked) {
+            throw new SeatLockException("Failed to lock all seats");
         }
         return seats;
     }
@@ -119,24 +121,27 @@ public class BookingService {
     @Transactional
     public void confirmBooking(Long bookingId) {
 
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
+        try {
+            Booking booking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 
-        validateBookingForConfirmation(booking);
+            validateBookingForConfirmation(booking);
 
-        booking.setStatus(BookingStatus.CONFIRMED_BOOKING);
-        bookingRepository.save(booking);
+            outboxService.saveBookingConfirmedEvent(booking);
 
-        outboxService.saveBookingConfirmedEvent(booking);
+            List<SeatInventory> seats = getSeatsForBooking(booking);
 
-        List<SeatInventory> seats = getSeatsForBooking(booking);
+            updateSeatsStatus(seats, SeatStatus.BOOKED);
+            unlockSeats(seats);
 
-        updateSeatsStatus(seats, SeatStatus.BOOKED);
-        unlockSeats(seats);
+            booking.setStatus(BookingStatus.CONFIRMED_BOOKING);
+            bookingRepository.save(booking);
+            //publishBookingConfirmedEvent(booking);
 
-        seatInventoryRepository.saveAll(seats);
-
-        publishBookingConfirmedEventAsync(booking);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new BookingException("Booking confirmation failed", e);
+        }
     }
 
     @Scheduled(fixedDelay = BOOKING_EXPIRY_CHECK_DELAY_MS)
@@ -156,46 +161,55 @@ public class BookingService {
     }
 
     public BookingResponse getBookingById(Long bookingId, Long userId) {
-        Booking booking = bookingRepository.findByBookingIdAndUserId(bookingId, userId)
-                .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
+        try {
+            Booking booking = bookingRepository.findByBookingIdAndUserId(bookingId, userId)
+                    .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 
-        validateBookingOwnership(booking, userId);
+            // suppose payment done -> change the status confirm to test it
+            booking.setStatus(BookingStatus.CONFIRMED_BOOKING);
+            bookingRepository.save(booking);
 
-        List<SeatInventory> seats = getSeatsForBooking(booking);
+            validateBookingOwnership(booking, userId);
 
-        return BookingResponse.from(booking, seats);
+            List<SeatInventory> seats = getSeatsForBooking(booking);
+
+            return new BookingResponse(booking, seats);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new BookingException("Booking Detail Fetch failed", e);
+        }
     }
 
     private void validateBookingRequest(BookingRequest request) {
         if (request.getShowId() == null) {
-            throw new BusinessException("Show ID is required");
+            throw new BookingException("Show ID is required");
         }
         if (request.getUserId() == null) {
-            throw new BusinessException("User ID is required");
+            throw new BookingException("User ID is required");
         }
         if (request.getSeatNumbers() == null || request.getSeatNumbers().isEmpty()) {
-            throw new BusinessException("Seat numbers are required");
+            throw new BookingException("Seat numbers are required");
         }
     }
 
     private void validateSeatAvailability(SeatInventory seat) {
         if (!SeatStatus.AVAILABLE.equals(seat.getSeatStatus())) {
-            throw new SeatUnavailableException(seat.getSeatNumber());
+            throw new SeatUnavailableException("Seat is not available. " + seat.getSeatNumber());
         }
     }
 
     private void validateBookingForConfirmation(Booking booking) {
         if (!BookingStatus.PENDING_PAYMENT.equals(booking.getStatus())) {
-            throw new BusinessException("Invalid booking state");
+            throw new BookingValidationException("Invalid booking state for booking ref" + booking.getBookingReference());
         }
-        if (booking.getExpiryTime().isBefore(LocalDateTime.now())) {
-            throw new BusinessException("Booking has expired");
-        }
+//        if (booking.getExpiryTime().isBefore(LocalDateTime.now())) {
+//            throw new BookingValidationException("Booking has expired for booking ref "+booking.getBookingReference());
+//        }
     }
 
     private void validateBookingOwnership(Booking booking, Long userId) {
         if (!booking.getUserId().equals(userId)) {
-            throw new BusinessException("Booking does not belong to this user");
+            throw new BookingValidationException("Booking does not belong to this user");
         }
     }
 
@@ -247,18 +261,20 @@ public class BookingService {
         });
 
         seatInventoryRepository.saveAll(seats);
-        publishBookingExpiredEventAsync(booking);
+        // publishBookingExpiredEvent(booking);
     }
 
-    private void publishBookingInitiatedEventAsync(Booking booking) {
-        CompletableFuture.runAsync(() -> kafkaPublisher.bookingInitiated(booking));
+    private void publishBookingInitiatedEvent(Booking booking) {
+        kafkaPublisher.bookingInitiated(booking);
+
     }
 
-    private void publishBookingConfirmedEventAsync(Booking booking) {
-        CompletableFuture.runAsync(() -> kafkaPublisher.bookingConfirmed(booking));
+    private void publishBookingConfirmedEvent(Booking booking) {
+        kafkaPublisher.bookingConfirmed(booking);
+
     }
 
-    private void publishBookingExpiredEventAsync(Booking booking) {
-        CompletableFuture.runAsync(() -> kafkaPublisher.bookingExpired(booking));
+    private void publishBookingExpiredEvent(Booking booking) {
+        kafkaPublisher.bookingExpired(booking);
     }
 }

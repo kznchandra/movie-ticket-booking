@@ -1,5 +1,6 @@
 package com.pbs.bookingservice.service;
 
+import com.pbs.bookingservice.common.ex.SeatUnavailableException;
 import com.pbs.bookingservice.common.resp.PricingDetails;
 import com.pbs.bookingservice.entity.SeatInventory;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class PricingService {
             String offerCode) {
 
         if (seats == null || seats.isEmpty()) {
-            throw new IllegalArgumentException("Seats list cannot be null or empty");
+            throw new SeatUnavailableException("Seats list cannot be null or empty");
         }
 
         BigDecimal basePrice = calculateBasePrice(seats);
