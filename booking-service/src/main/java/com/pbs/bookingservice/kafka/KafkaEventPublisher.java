@@ -2,7 +2,7 @@ package com.pbs.bookingservice.kafka;
 
 import com.pbs.bookingservice.entity.Booking;
 import com.pbs.bookingservice.kafka.event.BookingEvent;
-import lombok.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;

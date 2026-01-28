@@ -16,7 +16,6 @@ import com.pbs.bookingservice.repository.BookingRepository;
 import com.pbs.bookingservice.repository.SeatInventoryRepository;
 import com.pbs.bookingservice.saga.OutboxService;
 import jakarta.transaction.Transactional;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -25,7 +24,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
