@@ -67,7 +67,7 @@ public class BookingService {
         );
 
         // Publish Kafka event
-        kafkaPublisher.bookingInitiated(booking);
+       // kafkaPublisher.bookingInitiated(booking);
         return BookingResponse.from(booking, seats);
     }
 

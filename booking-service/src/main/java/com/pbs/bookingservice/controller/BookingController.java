@@ -2,13 +2,13 @@ package com.pbs.bookingservice.controller;
 
 import com.pbs.bookingservice.common.req.BookingRequest;
 import com.pbs.bookingservice.common.resp.BookingResponse;
-import com.pbs.bookingservice.common.security.UserPrincipal;
 import com.pbs.bookingservice.service.BookingService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,8 +23,8 @@ public class BookingController {
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
             @Valid @RequestBody BookingRequest request,
-            @AuthenticationPrincipal UserPrincipal user) {
-        request.setUserId(user.getId());
+            @AuthenticationPrincipal Authentication user) {
+        request.setUserId(1L); // dummy user id for testing
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(bookingService.initiateBooking(request));
@@ -33,9 +33,9 @@ public class BookingController {
     @GetMapping("/{bookingId}")
     public BookingResponse getBooking(
             @PathVariable Long bookingId,
-            @AuthenticationPrincipal UserPrincipal user) {
+            @AuthenticationPrincipal Authentication user) {
 
-        return bookingService.getBookingById(bookingId, user.getId());
+        return bookingService.getBookingById(bookingId, 1L); // dummy user id for testing
     }
 
 }

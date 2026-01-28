@@ -21,16 +21,16 @@ public class BookingServiceApplication implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-//        BookingResponse bookingResponse = bookingService.initiateBooking(
-//                BookingRequest.builder()
-//                        .userId(1L)
-//                        .showId(1L)
-//                        .showId(1L)
-//                        .offerCode("THIRD_50")
-//                        .seatNumbers(List.of("A1","A2"))
-//                        .seatCount(3)
-//                        .build()
-//        );
-//        System.out.println(bookingResponse);
+        BookingResponse bookingResponse = bookingService.initiateBooking(
+                BookingRequest.builder()
+                        .userId(1L)
+                        .showId(1L)
+                        .showId(1L)
+                        .offerCode("THIRD_50")
+                        .seatNumbers(List.of("A1","A2"))
+                        .seatCount(3)
+                        .build()
+        );
+        System.err.println(bookingResponse.getBooking().getBookingReference());
     }
 }
