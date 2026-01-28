@@ -39,36 +39,31 @@ public class BookingService {
     private final OutboxService outboxService;
 
     public BookingResponse initiateBooking(BookingRequest request) {
-        try {
-            validateBookingRequest(request);
+        validateBookingRequest(request);
 
-            // Acquire seat locks
-            List<SeatInventory> seats = validateAndLockSeats(
-                    request.getShowId(),
-                    request.getSeatNumbers(),
-                    request.getUserId()
-            );
+        // Acquire seat locks
+        List<SeatInventory> seats = validateAndLockSeats(
+                request.getShowId(),
+                request.getSeatNumbers(),
+                request.getUserId()
+        );
 
-            // Pricing
-            PricingDetails pricing =
-                    pricingService.calculatePricing(seats, request.getOfferCode());
+        // Pricing
+        PricingDetails pricing =
+                pricingService.calculatePricing(seats, request.getOfferCode());
 
-            // Create booking
-            Booking booking = createBookingRecord(request, seats, pricing);
+        // Create booking
+        Booking booking = createBookingRecord(request, seats, pricing);
 
-            // Write Outbox Event (same transaction)
-            outboxService.saveBookingInitiatedEvent(booking);
+        // Write Outbox Event (same transaction)
+        outboxService.saveBookingInitiatedEvent(booking);
 
-            // Cache booking temporarily
-            cacheBooking(booking);
+        // Cache booking temporarily
+        cacheBooking(booking);
 
-            // Publish Kafka event
-            // publishBookingInitiatedEvent(booking);
-            return new BookingResponse(booking, seats);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new BookingException("Booking failed", e);
-        }
+        // Publish Kafka event
+        // publishBookingInitiatedEvent(booking);
+        return new BookingResponse(booking, seats);
     }
 
     private Booking createBookingRecord(
@@ -121,27 +116,24 @@ public class BookingService {
     @Transactional
     public void confirmBooking(Long bookingId) {
 
-        try {
-            Booking booking = bookingRepository.findById(bookingId)
-                    .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 
-            validateBookingForConfirmation(booking);
+        validateBookingForConfirmation(booking);
 
-            outboxService.saveBookingConfirmedEvent(booking);
+        outboxService.saveBookingConfirmedEvent(booking);
 
-            List<SeatInventory> seats = getSeatsForBooking(booking);
+        List<SeatInventory> seats = getSeatsForBooking(booking);
 
-            updateSeatsStatus(seats, SeatStatus.BOOKED);
-            unlockSeats(seats);
+        updateSeatsStatus(seats, SeatStatus.BOOKED);
+        unlockSeats(seats);
 
-            booking.setStatus(BookingStatus.CONFIRMED_BOOKING);
-            bookingRepository.save(booking);
-            //publishBookingConfirmedEvent(booking);
+        booking.setStatus(BookingStatus.CONFIRMED_BOOKING);
+        bookingRepository.save(booking);
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new BookingException("Booking confirmation failed", e);
-        }
+        //publishBookingConfirmedEvent(booking);
+
+
     }
 
     @Scheduled(fixedDelay = BOOKING_EXPIRY_CHECK_DELAY_MS)
@@ -161,7 +153,6 @@ public class BookingService {
     }
 
     public BookingResponse getBookingById(Long bookingId, Long userId) {
-        try {
             Booking booking = bookingRepository.findByBookingIdAndUserId(bookingId, userId)
                     .orElseThrow(() -> new BookingNotFoundException("Booking not found"));
 
@@ -174,10 +165,6 @@ public class BookingService {
             List<SeatInventory> seats = getSeatsForBooking(booking);
 
             return new BookingResponse(booking, seats);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new BookingException("Booking Detail Fetch failed", e);
-        }
     }
 
     private void validateBookingRequest(BookingRequest request) {
@@ -202,6 +189,7 @@ public class BookingService {
         if (!BookingStatus.PENDING_PAYMENT.equals(booking.getStatus())) {
             throw new BookingValidationException("Invalid booking state for booking ref" + booking.getBookingReference());
         }
+          // temp commented to testing booking
 //        if (booking.getExpiryTime().isBefore(LocalDateTime.now())) {
 //            throw new BookingValidationException("Booking has expired for booking ref "+booking.getBookingReference());
 //        }
