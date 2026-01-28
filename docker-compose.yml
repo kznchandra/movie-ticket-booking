@@ -1,49 +1,49 @@
 version: '3.8'
 
 services:
-#  auth-server:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    restart: on-failure
-#    image: auth-server:latest
-#    container_name: auth-server
-#    ports:
-#      - "9000:9000"
-#    environment:
-#      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mtb
-#      - SPRING_DATASOURCE_USERNAME=cshekharv
-#      - SPRING_DATASOURCE_PASSWORD=admin
-#      - REDIS_HOST=redis
-#      - REDIS_PORT=6379
-#    depends_on:
-#      - postgres
-#      - redis
-#    networks:
-#      - app-network
-#
-#  booking-service:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    restart: on-failure
-#    image: booking-service:latest
-#    container_name: booking-service
-#    ports:
-#      - "8080:8080"
-#    environment:
-#      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mtb
-#      - SPRING_DATASOURCE_USERNAME=kaizen
-#      - SPRING_DATASOURCE_PASSWORD=admin
-#      - KAFKA_BOOTSTRAP_SERVERS=kafka-server:9092
-#      - REDIS_HOST=redis
-#      - REDIS_PORT=6379
-#    depends_on:
-#      - postgres
-#      - kafka-server
-#      - redis
-#    networks:
-#      - app-network
+  auth-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: on-failure
+    image: auth-server:latest
+    container_name: auth-server
+    ports:
+      - "9000:9000"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mtb
+      - SPRING_DATASOURCE_USERNAME=cshekharv
+      - SPRING_DATASOURCE_PASSWORD=admin
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - app-network
+
+  booking-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: on-failure
+    image: booking-service:latest
+    container_name: booking-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mtb
+      - SPRING_DATASOURCE_USERNAME=kaizen
+      - SPRING_DATASOURCE_PASSWORD=admin
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-server:9092
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - postgres
+      - kafka-server
+      - redis
+    networks:
+      - app-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -144,7 +144,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U cshekharv" ]
+      test: [ "CMD-SHELL", "pg_isready -U kaizen" ]
       interval: 10s
       timeout: 5s
       retries: 5
