@@ -23,11 +23,16 @@ public class OutboxEvent {
     private String payload;
 
     @Enumerated(EnumType.STRING)
-    private OutboxEventStatus eventStatus;
+    private OutboxEventStatus eventStatus = OutboxEventStatus.PENDING;
 
     private String status;          // NEW, SENT, FAILED
 
     private LocalDateTime createdAt = LocalDateTime.now();
-    private LocalDateTime processedAt;
+    private LocalDateTime processedAt = LocalDateTime.now();
+
+    @PreUpdate
+    protected void onUpdate() {
+        processedAt = LocalDateTime.now();
+    }
 
 }

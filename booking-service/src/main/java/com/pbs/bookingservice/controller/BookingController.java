@@ -38,4 +38,12 @@ public class BookingController {
         return bookingService.getBookingById(bookingId, 1L); // dummy user id for testing
     }
 
+    @PutMapping("/{bookingId}/confirm")
+    public ResponseEntity<Void> confirmBooking(
+            @PathVariable Long bookingId,
+            @AuthenticationPrincipal Authentication user) {
+        bookingService.confirmBooking(bookingId);
+        return ResponseEntity.ok().build();
+    }
+
 }
