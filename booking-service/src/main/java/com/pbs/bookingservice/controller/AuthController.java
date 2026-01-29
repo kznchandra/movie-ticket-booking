@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/auth/v1/api")
 @RequiredArgsConstructor
 @Tag(name = "Auth API", description = "API for authentication operations")
 public class AuthController {
