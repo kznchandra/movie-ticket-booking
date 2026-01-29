@@ -4,6 +4,11 @@
     <file url="file://$PROJECT_DIR$/.idea/queries/Query.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/.idea/queries/Query_1.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/.idea/queries/Query_2.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_3.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_4.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_5.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_6.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_7.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/booking-service/src/main/resources/db/migration/V1__create_user_table.sql" dialect="GenericSQL" />
     <file url="file://$PROJECT_DIR$/booking-service/src/main/resources/db/migration/V2__seed_movie_booking_dummy_data.sql" dialect="PostgreSQL" />
     <file url="PROJECT" dialect="PostgreSQL" />

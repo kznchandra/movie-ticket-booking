@@ -3,6 +3,11 @@
   <component name="DataSourcePerFileMappings">
     <file url="file://$PROJECT_DIR$/.idea/queries/Query_1.sql" value="1ec14f00-64d9-433f-805a-2b43dd1b1be8" />
     <file url="file://$PROJECT_DIR$/.idea/queries/Query_2.sql" value="1ec14f00-64d9-433f-805a-2b43dd1b1be8" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_3.sql" value="1ec14f00-64d9-433f-805a-2b43dd1b1be8" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_4.sql" value="1ec14f00-64d9-433f-805a-2b43dd1b1be8" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_5.sql" value="1ec14f00-64d9-433f-805a-2b43dd1b1be8" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_6.sql" value="1ec14f00-64d9-433f-805a-2b43dd1b1be8" />
+    <file url="file://$PROJECT_DIR$/.idea/queries/Query_7.sql" value="1ec14f00-64d9-433f-805a-2b43dd1b1be8" />
     <file url="file://$PROJECT_DIR$/booking-service/src/main/resources/db/migration/V2__seed_movie_booking_dummy_data.sql" value="1ec14f00-64d9-433f-805a-2b43dd1b1be8" />
   </component>
 </project>
